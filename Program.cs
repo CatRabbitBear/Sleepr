@@ -1,10 +1,12 @@
 using Azure;
+using DotNetEnv;
 using Microsoft.SemanticKernel;
 using Sleepr.Interfaces;
+using Sleepr.Mail;
+using Sleepr.Mail.Interfaces;
 using Sleepr.Services;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using DotNetEnv;
 
 
 // Ensure the DotNetEnv NuGet package is installed in your project. You can install it using the following command in the terminal:
@@ -12,7 +14,6 @@ using DotNetEnv;
 
 DotNetEnv.Env.Load();
 // Add this at the top of the file with the other using directives
-
 
 // Ensure the DotNetEnv NuGet package is installed in your project. You can install it using the following command in the terminal:
 // dotnet add package DotNetEnv
@@ -61,6 +62,16 @@ builder.Services.AddScoped<IAgentOutput, FileAgentOutput>(serviceProvider =>
     return new FileAgentOutput(outputDirectory);
 });
 
+var username = Environment.GetEnvironmentVariable("FASTMAIL_USERNAME");
+var password = Environment.GetEnvironmentVariable("FASTMAIL_APP_PASSWORD");
+if (!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
+{
+    builder.Services.AddScoped<FastmailImapHandler>(sp =>
+    {
+        return new FastmailImapHandler(username, password);
+    });
+}
+
 builder.Services.AddControllers()
     .AddJsonOptions(opts =>
     {
@@ -70,7 +81,6 @@ builder.Services.AddControllers()
             allowIntegerValues: false   // safer: disallow numeric enums
         ));
     });
-
 
 var app = builder.Build();
 
@@ -95,6 +105,14 @@ app.MapRazorPages()
 app.MapControllers();
 
 app.MapGet("/api/status", () => "Sleepr is running!");
+app.MapGet("/test-email", async (FastmailImapHandler? emailReader) =>
+{
+    if (emailReader == null)
+        return Results.Problem("Email reader not available.");
+
+    var emails = await emailReader.FetchRecentAsync();
+    return Results.Ok(emails.Select(e => new { e.Subject, e.From , e.Body}));
+});
 //app.MapPost("/api/run-agent-task", async (HttpRequest req) =>
 //{
 //    // Read the entire JSON payload
