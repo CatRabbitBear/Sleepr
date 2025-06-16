@@ -1,6 +1,7 @@
 using Azure;
 using DotNetEnv;
 using Microsoft.SemanticKernel;
+using Sleepr.Agents;
 using Sleepr.Interfaces;
 using Sleepr.Mail;
 using Sleepr.Mail.Interfaces;
@@ -24,6 +25,10 @@ var builder = WebApplication.CreateBuilder(args);
 Console.WriteLine($"Model: {Environment.GetEnvironmentVariable("AZURE_MODEL_ID")}");
 
 // Add services to the container.
+builder.Services.AddSingleton<IPromptLoader>(new YamlPromptLoader("prompts"));
+builder.Services.AddScoped<IAgentRunner, SleeprAgentRunner>();
+builder.Services.AddScoped<IMcpPluginManager, McpPluginManager>();
+builder.Services.AddScoped<ISleeprAgentFactory, SleeprAgentFactory>();
 builder.Services.AddRazorPages();
 builder.Services.AddCors(options =>
 {

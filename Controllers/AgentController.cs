@@ -16,13 +16,11 @@ public enum MessageType
 [Route("api/[controller]")]
 public class AgentController : ControllerBase
 {
-    private readonly Kernel _kernel;
-    private readonly IAgentOutput _outputManager;
+    private readonly IAgentRunner _agentRunner;
 
-    public AgentController(Kernel kernel, IAgentOutput outputManager)
+    public AgentController(IAgentRunner agentRunner)
     {
-        _kernel = kernel;
-        _outputManager = outputManager;
+        _agentRunner = agentRunner;
     }
 
     public class AgentRequest
@@ -48,47 +46,12 @@ public class AgentController : ControllerBase
     {
         try
         {
-            ChatHistory chatHistory = new ChatHistory();
-            foreach (var item in req.History)
-            {
-                switch (item.Role)
-                {
-                    case MessageType.System:
-                        chatHistory.AddSystemMessage(item.Content);
-                        break;
-                    case MessageType.User:
-                        chatHistory.AddUserMessage(item.Content);
-                        break;
-                    case MessageType.Assistant:
-                        chatHistory.AddAssistantMessage(item.Content);
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException(nameof(item.Role), "Invalid message type.");
-                }
-            }
-
-            var chatService = _kernel.GetRequiredService<IChatCompletionService>();
-            var result = await chatService.GetChatMessageContentAsync(chatHistory);
-
-            if (result.Content != null)
-            {
-                // Save the result to a file if needed
-                var filePath = await _outputManager.SaveAsync(result.Content);
-                return Ok(new AgentResponse
-                {
-                    Result = result.Content,
-                    FilePath = filePath
-                });
-            }
-            else
-            {
-                return BadRequest(new { error = "No result returned from chat service." });
-            }
+            var result = await _agentRunner.RunTaskAsync(req.History);
+            return Ok(result);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error during chat completion: {ex.Message}");
-            return BadRequest(new { error = "An error occurred while processing the request." });
+            return BadRequest(new { error = ex.Message });
         }
     }
 }
