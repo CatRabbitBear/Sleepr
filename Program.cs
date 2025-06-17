@@ -26,7 +26,9 @@ Console.WriteLine($"Model: {Environment.GetEnvironmentVariable("AZURE_MODEL_ID")
 
 // Add services to the container.
 builder.Services.AddSingleton<IPromptLoader>(new YamlPromptLoader("prompts"));
+builder.Services.AddSingleton<IPromptTemplateFactory, KernelPromptTemplateFactory>();
 builder.Services.AddScoped<IAgentRunner, SleeprAgentRunner>();
+builder.Services.AddScoped<IChatCompletionsRunner, ChatCompletionsRunner>();
 builder.Services.AddScoped<IMcpPluginManager, McpPluginManager>();
 builder.Services.AddScoped<ISleeprAgentFactory, SleeprAgentFactory>();
 builder.Services.AddRazorPages();

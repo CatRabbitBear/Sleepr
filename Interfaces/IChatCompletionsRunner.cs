@@ -2,7 +2,7 @@
 
 namespace Sleepr.Interfaces;
 
-public interface IAgentRunner
+public interface IChatCompletionsRunner
 {
     Task<AgentResponse> RunTaskAsync(List<AgentRequestItem> history);
 }

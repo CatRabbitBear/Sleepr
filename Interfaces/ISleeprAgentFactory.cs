@@ -5,6 +5,6 @@ namespace Sleepr.Interfaces;
 
 public interface ISleeprAgentFactory
 {
-    Task<ISleeprAgent> CreateOrchestratorAgentAsync(ChatHistory history);
-    Task<ISleeprAgent> CreateTaskAgentAsync(List<string> selectedPlugins, ChatHistory history);
+    Task<ChatCompletionAgent> CreateOrchestratorAgentAsync(string path);
+    Task<ChatCompletionAgent> CreateTaskAgentAsync(string path, List<string> selectedPlugins);
 }

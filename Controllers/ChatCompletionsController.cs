@@ -1,20 +1,16 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-//using Microsoft.SemanticKernel;
-//using Microsoft.SemanticKernel.ChatCompletion;
 using Sleepr.Interfaces;
 
 namespace Sleepr.Controllers;
 
-
 [ApiController]
-[Route("api/[controller]")]
-public class AgentController : ControllerBase
+[Route("api/chat-completions")]
+public class ChatCompletionsController : ControllerBase
 {
-    private readonly IAgentRunner _agentRunner;
-
-    public AgentController(IAgentRunner agentRunner)
+    private readonly IChatCompletionsRunner _chatCompletionsRunner;
+    public ChatCompletionsController(IChatCompletionsRunner chatCompletionsRunner)
     {
-        _agentRunner = agentRunner;
+        _chatCompletionsRunner = chatCompletionsRunner;
     }
 
     [HttpPost("run-task")]
@@ -22,7 +18,7 @@ public class AgentController : ControllerBase
     {
         try
         {
-            var result = await _agentRunner.RunTaskAsync(req.History);
+            var result = await _chatCompletionsRunner.RunTaskAsync(req.History);
             return Ok(result);
         }
         catch (Exception ex)
@@ -30,4 +26,5 @@ public class AgentController : ControllerBase
             return BadRequest(new { error = ex.Message });
         }
     }
+
 }
