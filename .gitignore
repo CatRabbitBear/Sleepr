@@ -43,6 +43,7 @@ CodeCoverage/
 .vs/
 .env
 [Aa]gent-output
+test-plugins/
 
 # MSBuild Binary and Structured Log
 *.binlog
