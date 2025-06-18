@@ -1,0 +1,14 @@
+{
+  "id": "weather",
+  "name": "Weather Tools",
+  "description": "Query real-time weather forecasts.",
+  "transport": "stdio",
+  "runtime": "npx",
+  "args": [ "-y", "@sleepr-plugins/weather-server" ],
+  "auth": {
+    "type": "env",
+    "variable": "WEATHER_API_KEY"
+  },
+  "tags": [ "weather", "forecast", "location" ],
+  "origin": "https://github.com/sleepr-plugins/weather-server"
+}
