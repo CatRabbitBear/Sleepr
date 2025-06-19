@@ -10,7 +10,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 
-// Ensure the DotNetEnv NuGet package is installed in your project. You can install it using the following command in the terminal:
+// The 'Port syncing with extension' chat details transitioning to a system tray application with a web interface.
 // dotnet add package DotNetEnv
 
 DotNetEnv.Env.Load();
