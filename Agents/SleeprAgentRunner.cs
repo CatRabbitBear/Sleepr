@@ -3,6 +3,7 @@ using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Sleepr.Controllers;
 using Sleepr.Interfaces;
+using Sleepr.Services;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -17,12 +18,12 @@ public class ToolsResponse
 public class SleeprAgentRunner : IAgentRunner
 {
     private readonly ISleeprAgentFactory _factory;
-    private readonly IMcpPluginManager _pluginManager;
+    private readonly McpPluginManager _pluginManager;
     private readonly IAgentOutput _outputManager;
 
     public SleeprAgentRunner(
         ISleeprAgentFactory factory,
-        IMcpPluginManager pluginManager,
+        McpPluginManager pluginManager,
         IAgentOutput outputManager)
     {
         _factory = factory;
@@ -35,22 +36,23 @@ public class SleeprAgentRunner : IAgentRunner
         var (user_message, thread) = ChatHistoryBuilder.FromAgentRequest(history);
         var orchestrator = await _factory.CreateOrchestratorAgentAsync(path: "orchestrator");
 
-        var toolsDict = new Dictionary<string, string>
-        {
-            ["Weather"] = "Get weather forecasts based on location",
-            ["Email"] = "Use FastMail API to retrieve, send and read emails",
-            ["Maps"] = "Use Google Maps API to retrieve map data"
-        };
+        //var toolsDict = new Dictionary<string, string>
+        //{
+        //    ["Weather"] = "Get weather forecasts based on location",
+        //    ["Email"] = "Use FastMail API to retrieve, send and read emails",
+        //    ["Maps"] = "Use Google Maps API to retrieve map data"
+        //};
+        var toolsDict = _pluginManager.ListAvailableServers()
+            .ToDictionary(m => m.Name, m => m.Description);
 
         string toolsList = string.Join("\n", toolsDict
            .Select(kv => $"- **{kv.Key}**: {kv.Value}"));
 
+        Console.WriteLine($"INFO: Tools list: {toolsList}");
         var args = new KernelArguments
         {
             ["tools_list"] = toolsList
         };
-
-        //var thread = new ChatHistoryAgentThread();
 
         //var pluginNames = await orchestrator.InvokeAsync("Will I need a raincoat in London tomorrow?", thread, new AgentInvokeOptions
         //{
@@ -79,14 +81,34 @@ public class SleeprAgentRunner : IAgentRunner
         }
 
         // TODO after testing 
-        //var taskAgent = await _factory.CreateTaskAgentAsync(path: "task_executor", pluginNames);
+        var taskAgent = await _factory.CreateTaskAgentAsync(path: "task-runner", pluginNames);
 
         //var response = await taskAgent.InvokeAsync("Do the thing");
         //var path = await _outputManager.SaveAsync(response.Content);
+        var taskThread = new ChatHistoryAgentThread();
+        string agentFinalResponse = string.Empty;
+        await foreach (ChatMessageContent message in taskAgent.InvokeAsync(user_message, taskThread, new AgentInvokeOptions { KernelArguments = args }))
+        {
+            if (message.Role == AuthorRole.Assistant)
+            {
+                // Process the assistant's response
+                agentFinalResponse = message.Content ?? string.Empty;
+            }
+            else if (message.Role == AuthorRole.Tool)
+            {
+                // Process the user's response
+                Console.WriteLine($"INFO: Tool call made {message.Content}");
+            }
+            else
+            {
+                // Handle other roles if necessary
+                Console.WriteLine($"INFO: Received message from {message.Role}: {message.Content}");
+            }
+        }
 
         // return new AgentResponse { Result = response.Content, FilePath = path };
         Console.WriteLine($"Tool list: {GetStringFromToolList(pluginNames)}");
-        return new AgentResponse { Result = GetStringFromToolList(pluginNames), FilePath = "" };
+        return new AgentResponse { Result = agentFinalResponse, FilePath = "" };
 
     }
 

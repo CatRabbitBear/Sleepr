@@ -5,6 +5,7 @@ using Sleepr.Agents;
 using Sleepr.Interfaces;
 using Sleepr.Mail;
 using Sleepr.Mail.Interfaces;
+using Sleepr.Plugins;
 using Sleepr.Services;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -25,11 +26,25 @@ var builder = WebApplication.CreateBuilder(args);
 Console.WriteLine($"Model: {Environment.GetEnvironmentVariable("AZURE_MODEL_ID")}");
 
 // Add services to the container.
+//var pluginFolder = Path.Combine(AppContext.BaseDirectory, "test-plugins");
+//var manifests = PluginLoader.LoadManifests(pluginFolder);
+//foreach (var manifest in manifests)
+//{
+//    Console.WriteLine($"Loaded plugin: {manifest.Name} ({manifest.Id})");
+//}
+builder.Services.AddScoped<McpPluginManager>(serviceProvider =>
+     {
+         // 1. Load all manifests from the "test-plugins" folder
+         var pluginFolder = Path.Combine(Directory.GetCurrentDirectory(), "test-plugins");
+         var manifests = PluginLoader.LoadManifests(pluginFolder);
+         // 2. Construct and return the manager
+         return new McpPluginManager(manifests);
+     });
+
 builder.Services.AddSingleton<IPromptLoader>(new YamlPromptLoader("prompts"));
 builder.Services.AddSingleton<IPromptTemplateFactory, KernelPromptTemplateFactory>();
 builder.Services.AddScoped<IAgentRunner, SleeprAgentRunner>();
 builder.Services.AddScoped<IChatCompletionsRunner, ChatCompletionsRunner>();
-builder.Services.AddScoped<IMcpPluginManager, McpPluginManager>();
 builder.Services.AddScoped<ISleeprAgentFactory, SleeprAgentFactory>();
 builder.Services.AddRazorPages();
 builder.Services.AddCors(options =>
