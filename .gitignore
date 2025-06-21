@@ -20,8 +20,10 @@ x86/
 bld/
 [Bb]in/
 [Oo]bj/
-[Ll]og/
 [Ll]ogs/
+
+Logs/*
+!Logs/.gitkeep
 
 # .NET Core
 project.lock.json
