@@ -17,15 +17,18 @@ public class ToolsResponse
 
 public class SleeprAgentRunner : IAgentRunner
 {
+    private readonly ILogger<SleeprAgentRunner> _logger;
     private readonly ISleeprAgentFactory _factory;
     private readonly McpPluginManager _pluginManager;
     private readonly IAgentOutput _outputManager;
 
     public SleeprAgentRunner(
+        ILogger<SleeprAgentRunner> logger,
         ISleeprAgentFactory factory,
         McpPluginManager pluginManager,
         IAgentOutput outputManager)
     {
+        _logger = logger;
         _factory = factory;
         _pluginManager = pluginManager;
         _outputManager = outputManager;
@@ -48,17 +51,12 @@ public class SleeprAgentRunner : IAgentRunner
         string toolsList = string.Join("\n", toolsDict
            .Select(kv => $"- **{kv.Key}**: {kv.Value}"));
 
-        Console.WriteLine($"INFO: Tools list: {toolsList}");
+        _logger.LogInformation("Tools list: {ToolsList}", toolsList);
         var args = new KernelArguments
         {
             ["tools_list"] = toolsList
         };
-
-        //var pluginNames = await orchestrator.InvokeAsync("Will I need a raincoat in London tomorrow?", thread, new AgentInvokeOptions
-        //{
-        //    KernelArguments = args
-        //});
-     
+    
         List<string> pluginNames = new List<string>();
         await foreach (ChatMessageContent message in orchestrator.InvokeAsync(user_message, thread, new AgentInvokeOptions { KernelArguments = args }))
         {
@@ -66,25 +64,21 @@ public class SleeprAgentRunner : IAgentRunner
             {
                 // Process the assistant's response
                 pluginNames = GetToolsFromJsonResponse(message.Content!);
-                Console.WriteLine($"INFO: Received assistant message: {message.Content}. PluginNames: {pluginNames.Count}");
+                _logger.LogInformation("Received assistant message: {MessageContent}. PluginNames: {PluginCount}", message.Content, pluginNames.Count);
             }
             else if (message.Role == AuthorRole.Tool)
             {
                 // Process the user's response
-                Console.WriteLine($"WARN: Tool call attmepted in orchestrator");
+                _logger.LogWarning("Tool call attempted in orchestrator: {MessageContent}", message.Content);
             }
             else
             {
                 // Handle other roles if necessary
-                Console.WriteLine($"INFO: Received message from {message.Role}: {message.Content}");
+                _logger.LogInformation("Received message from {Role}: {Content}", message.Role, message.Content);
             }
         }
 
-        // TODO after testing 
         var taskAgent = await _factory.CreateTaskAgentAsync(path: "task-runner", pluginNames);
-
-        //var response = await taskAgent.InvokeAsync("Do the thing");
-        //var path = await _outputManager.SaveAsync(response.Content);
         var taskThread = new ChatHistoryAgentThread();
         string agentFinalResponse = string.Empty;
         await foreach (ChatMessageContent message in taskAgent.InvokeAsync(user_message, taskThread, new AgentInvokeOptions { KernelArguments = args }))
@@ -107,7 +101,9 @@ public class SleeprAgentRunner : IAgentRunner
         }
 
         // return new AgentResponse { Result = response.Content, FilePath = path };
-        Console.WriteLine($"Tool list: {GetStringFromToolList(pluginNames)}");
+        // var path = await _outputManager.SaveAsync(response.Content);
+        // Console.WriteLine($"Tool list: {GetStringFromToolList(pluginNames)}");
+        _logger.LogInformation("Final agent response: {AgentResponse}", agentFinalResponse);
         return new AgentResponse { Result = agentFinalResponse, FilePath = "" };
 
     }
@@ -123,12 +119,12 @@ public class SleeprAgentRunner : IAgentRunner
             var firstJson = ExtractFirstJsonObject(jsonResponse);
             var toolsResponse = JsonSerializer.Deserialize<ToolsResponse>(firstJson, options);
             var tools = toolsResponse?.Tools;
-            Console.WriteLine($"tools: {tools}");
+            _logger.LogInformation("Extracted tools from orchestrator: {ToolsCount}", tools?.Count ?? 0);
             return tools ?? new List<string>();
         }
         catch (JsonException ex)
         {
-            Console.WriteLine($"Error deserializing JSON response: {ex.Message}");
+            _logger.LogError(ex, "Error deserializing JSON response: {JsonResponse}", jsonResponse);
             return new List<string>();
         }
     }

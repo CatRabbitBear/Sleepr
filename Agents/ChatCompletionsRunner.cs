@@ -8,11 +8,13 @@ namespace Sleepr.Agents;
 
 public class ChatCompletionsRunner : IChatCompletionsRunner
 {
+    private readonly ILogger<ChatCompletionsRunner> _logger;
     private readonly Kernel _kernel;
     private readonly IAgentOutput _outputManager;
 
-    public ChatCompletionsRunner(Kernel kernel, IAgentOutput outputManager)
+    public ChatCompletionsRunner(ILogger<ChatCompletionsRunner> logger, Kernel kernel, IAgentOutput outputManager)
     {
+        _logger = logger;
         _kernel = kernel;
         _outputManager = outputManager;
     }
@@ -43,7 +45,7 @@ public class ChatCompletionsRunner : IChatCompletionsRunner
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error during chat completion: {ex.Message}");
+            _logger.LogError(ex, "Error during chat completion");
             return new AgentResponse { Result = "", FilePath = ""};
         }
     }

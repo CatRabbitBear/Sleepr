@@ -8,13 +8,15 @@ namespace Sleepr.Services;
 public class McpPluginManager: IAsyncDisposable
 {
     // Load all manifests up-front (from JSON files, DB, etc.)
+    private readonly ILogger<McpPluginManager> _logger;
     private readonly List<PluginManifest> _manifests;
     private readonly McpServerPool _pool;
 
-    public McpPluginManager(IEnumerable<PluginManifest> manifests)
+    public McpPluginManager(IEnumerable<PluginManifest> manifests, ILogger<McpPluginManager> logger)
     {
         _manifests = manifests.ToList();
         _pool = new McpServerPool();
+        _logger = logger;
     }
 
     // Repo-like methods:
@@ -49,6 +51,11 @@ public class McpPluginManager: IAsyncDisposable
 
         if (best.Distance <= maxDistance)
             return best.Manifest;
+
+        // no close match found
+        _logger.LogWarning(
+            "No exact match for '{Input}' found. Closest match '{BestMatch}' with distance {Distance} exceeds threshold {MaxDistance}.",
+            input, best.Manifest.Id, best.Distance, maxDistance);
 
         throw new KeyNotFoundException(
             $"No manifest matching '{input}' and no close fuzzy match found.");

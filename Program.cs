@@ -1,6 +1,8 @@
 using Azure;
 using DotNetEnv;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
+using Serilog;
 using Sleepr.Agents;
 using Sleepr.Interfaces;
 using Sleepr.Mail;
@@ -12,10 +14,8 @@ using System.Text.Json.Serialization;
 
 
 // The 'Port syncing with extension' chat details transitioning to a system tray application with a web interface.
-// dotnet add package DotNetEnv
 
 DotNetEnv.Env.Load();
-// Add this at the top of the file with the other using directives
 
 // Ensure the DotNetEnv NuGet package is installed in your project. You can install it using the following command in the terminal:
 // dotnet add package DotNetEnv
@@ -26,22 +26,30 @@ var builder = WebApplication.CreateBuilder(args);
 Console.WriteLine($"Model: {Environment.GetEnvironmentVariable("AZURE_MODEL_ID")}");
 
 // Add services to the container.
-//var pluginFolder = Path.Combine(AppContext.BaseDirectory, "test-plugins");
-//var manifests = PluginLoader.LoadManifests(pluginFolder);
-//foreach (var manifest in manifests)
-//{
-//    Console.WriteLine($"Loaded plugin: {manifest.Name} ({manifest.Id})");
-//}
+
+// Serilog
+builder.Host.UseSerilog((ctx, lc) => lc
+    .ReadFrom.Configuration(ctx.Configuration)
+    .Enrich.FromLogContext()
+);
+builder.Logging.ClearProviders();
+
 builder.Services.AddScoped<McpPluginManager>(serviceProvider =>
      {
          // 1. Load all manifests from the "test-plugins" folder
          var pluginFolder = Path.Combine(Directory.GetCurrentDirectory(), "test-plugins");
          var manifests = PluginLoader.LoadManifests(pluginFolder);
+         var logger = serviceProvider.GetRequiredService<ILogger<McpPluginManager>>();
          // 2. Construct and return the manager
-         return new McpPluginManager(manifests);
+         return new McpPluginManager(manifests, logger);
      });
 
-builder.Services.AddSingleton<IPromptLoader>(new YamlPromptLoader("prompts"));
+// builder.Services.AddSingleton<IPromptLoader>(new YamlPromptLoader(Serilog.ILogger<YamlPromptLoader>, "prompts"));
+builder.Services.AddSingleton<IPromptLoader>(serviceProvider =>
+{
+    var logger = serviceProvider.GetRequiredService<ILogger<YamlPromptLoader>>();
+    return new YamlPromptLoader(logger, "prompts");
+});
 builder.Services.AddSingleton<IPromptTemplateFactory, KernelPromptTemplateFactory>();
 builder.Services.AddScoped<IAgentRunner, SleeprAgentRunner>();
 builder.Services.AddScoped<IChatCompletionsRunner, ChatCompletionsRunner>();
@@ -81,7 +89,8 @@ builder.Services.AddScoped<IAgentOutput, FileAgentOutput>(serviceProvider =>
     // Use a directory in the current working directory for output files
     var outputDirectory = Path.Combine(Directory.GetCurrentDirectory(), "agent-output");
     Directory.CreateDirectory(outputDirectory);
-    return new FileAgentOutput(outputDirectory);
+    var logger = serviceProvider.GetRequiredService<ILogger<FileAgentOutput>>();
+    return new FileAgentOutput(logger, outputDirectory);
 });
 
 var username = Environment.GetEnvironmentVariable("FASTMAIL_USERNAME");
@@ -90,7 +99,8 @@ if (!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
 {
     builder.Services.AddScoped<FastmailImapHandler>(sp =>
     {
-        return new FastmailImapHandler(username, password);
+        var logger = sp.GetRequiredService<ILogger<FastmailImapHandler>>();
+        return new FastmailImapHandler(logger, username, password);
     });
 }
 
@@ -135,18 +145,5 @@ app.MapGet("/test-email", async (FastmailImapHandler? emailReader) =>
     var emails = await emailReader.FetchRecentAsync();
     return Results.Ok(emails.Select(e => new { e.Subject, e.From , e.Body}));
 });
-//app.MapPost("/api/run-agent-task", async (HttpRequest req) =>
-//{
-//    // Read the entire JSON payload
-//    using var reader = new StreamReader(req.Body);
-//    var body = await reader.ReadToEndAsync();
-
-//    // Log it to the console
-//    Console.WriteLine("Received /api/run-agent-task:");
-//    Console.WriteLine(body);
-
-//    // Echo back a simple acknowledgment
-//    return Results.Ok(new { status = "received", payload = body });
-//});
 
 app.Run();

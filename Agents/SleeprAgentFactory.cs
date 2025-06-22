@@ -10,17 +10,20 @@ namespace Sleepr.Agents;
 
 class SleeprAgentFactory : ISleeprAgentFactory
 {
+    private readonly ILogger<SleeprAgentFactory> _logger;
     private readonly IPromptLoader _promptLoader;
     private readonly IPromptTemplateFactory _templateFactory;
     private readonly McpPluginManager _pluginManager;
     private readonly Kernel _kernel;
 
     public SleeprAgentFactory(
+        ILogger<SleeprAgentFactory> logger,
         IPromptLoader promptLoader,
         IPromptTemplateFactory templateFactory,
         McpPluginManager pluginManager,
         Kernel kernel)
     {
+        _logger = logger;
         _promptLoader = promptLoader;
         _templateFactory = templateFactory;
         _pluginManager = pluginManager;
@@ -31,6 +34,7 @@ class SleeprAgentFactory : ISleeprAgentFactory
     public async Task<ChatCompletionAgent> CreateOrchestratorAgentAsync(string path = "orchestrator")
     {
         var config = await _promptLoader.LoadAsync(path);
+        _logger.LogInformation("Creating Orchestrator Agent with config name: {Config}", config.Name);
         var agent = new ChatCompletionAgent(config, _templateFactory)
         {
             // Clone so we can use different combinations of plugins for different agents
@@ -57,13 +61,13 @@ class SleeprAgentFactory : ISleeprAgentFactory
             }
             catch (KeyNotFoundException ex)
             {
-                Console.WriteLine($"ERROR: Plugin '{plugin}' not found. {ex.Message}");
+                _logger.LogError(ex, "Plugin not found: {Plugin}", plugin);
                 // Handle the case where the plugin is not found
                 // You might want to throw an exception or log an error
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"ERROR: Failed to add plugin '{plugin}'. {ex.Message}");
+                _logger.LogError(ex, "Failed to add plugin: {Plugin}", plugin);
                 // Handle other exceptions that may occur
             }
 

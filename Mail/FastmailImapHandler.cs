@@ -10,11 +10,13 @@ namespace Sleepr.Mail;
 
 public class FastmailImapHandler : IEmailReader, IEmailPoster
 {
+    private readonly ILogger<FastmailImapHandler> _logger;
     private readonly string _username;
     private readonly string _appPassword;
 
-    public FastmailImapHandler(string username, string appPassword)
+    public FastmailImapHandler(ILogger<FastmailImapHandler> logger, string username, string appPassword)
     {
+        _logger = logger;
         _username = username ?? throw new ArgumentNullException(nameof(username));
         _appPassword = appPassword ?? throw new ArgumentNullException(nameof(appPassword));
     }
@@ -22,6 +24,9 @@ public class FastmailImapHandler : IEmailReader, IEmailPoster
     public async Task<IReadOnlyList<EmailMessage>> FetchRecentAsync(int count = 5, CancellationToken cancellationToken = default)
     {
         using var client = new ImapClient();
+
+        // Disable certificate validation for simplicity; in production, you should validate certificates properly.
+        _logger.LogInformation("Connecting to Fastmail IMAP server...");
         client.ServerCertificateValidationCallback = (s, c, h, e) => true;
         await client.ConnectAsync("imap.fastmail.com", 993, SecureSocketOptions.SslOnConnect, cancellationToken);
         await client.AuthenticateAsync(_username, _appPassword, cancellationToken);

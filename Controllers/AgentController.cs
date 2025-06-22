@@ -10,10 +10,12 @@ namespace Sleepr.Controllers;
 [Route("api/[controller]")]
 public class AgentController : ControllerBase
 {
+    private readonly ILogger<AgentController> _logger;
     private readonly IAgentRunner _agentRunner;
 
-    public AgentController(IAgentRunner agentRunner)
+    public AgentController(ILogger<AgentController> logger,  IAgentRunner agentRunner)
     {
+        _logger = logger;
         _agentRunner = agentRunner;
     }
 
@@ -23,10 +25,12 @@ public class AgentController : ControllerBase
         try
         {
             var result = await _agentRunner.RunTaskAsync(req.History);
+            _logger.LogInformation("Task run successfully with result: {Result}", result);
             return Ok(result);
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error running task");
             return BadRequest(new { error = ex.Message });
         }
     }
