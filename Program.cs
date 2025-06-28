@@ -84,14 +84,13 @@ builder.Services.AddTransient((serviceProvider) =>
     return new Kernel(serviceProvider);
 });
 
-builder.Services.AddScoped<IAgentOutput, FileAgentOutput>(serviceProvider =>
-{
-    // Use a directory in the current working directory for output files
-    var outputDirectory = Path.Combine(Directory.GetCurrentDirectory(), "agent-output");
-    Directory.CreateDirectory(outputDirectory);
-    var logger = serviceProvider.GetRequiredService<ILogger<FileAgentOutput>>();
-    return new FileAgentOutput(logger, outputDirectory);
-});
+// Configure agent output to use SQLite database
+var outputDbPath = builder.Configuration["OutputDb:Path"] ?? "agent-output.db";
+var connectionString = Environment.GetEnvironmentVariable("OUTPUT_DB_CONNECTION_STRING")
+    ?? $"Data Source={Path.Combine(Directory.GetCurrentDirectory(), outputDbPath)}";
+
+builder.Services.AddSingleton(new DbOutputOptions { ConnectionString = connectionString });
+builder.Services.AddScoped<IAgentOutput, DbAgentOutput>();
 
 var username = Environment.GetEnvironmentVariable("FASTMAIL_USERNAME");
 var password = Environment.GetEnvironmentVariable("FASTMAIL_APP_PASSWORD");
