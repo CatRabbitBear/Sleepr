@@ -101,7 +101,7 @@ public class SleeprAgentRunner : IAgentRunner
         }
 
         // return new AgentResponse { Result = response.Content, FilePath = path };
-        // var path = await _outputManager.SaveAsync(response.Content);
+        var path = await _outputManager.SaveAsync(agentFinalResponse);
         // Console.WriteLine($"Tool list: {GetStringFromToolList(pluginNames)}");
         _logger.LogInformation("Final agent response: {AgentResponse}", agentFinalResponse);
         return new AgentResponse { Result = agentFinalResponse, FilePath = "" };

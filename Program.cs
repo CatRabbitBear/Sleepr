@@ -37,7 +37,7 @@ builder.Logging.ClearProviders();
 builder.Services.AddScoped<McpPluginManager>(serviceProvider =>
      {
          // 1. Load all manifests from the "test-plugins" folder
-         var pluginFolder = Path.Combine(Directory.GetCurrentDirectory(), "test-plugins");
+         var pluginFolder = Path.Combine(Directory.GetCurrentDirectory(), "Plugins/MCPServers");
          var manifests = PluginLoader.LoadManifests(pluginFolder);
          var logger = serviceProvider.GetRequiredService<ILogger<McpPluginManager>>();
          // 2. Construct and return the manager

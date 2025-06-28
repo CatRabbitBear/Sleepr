@@ -1,0 +1,57 @@
+﻿@page
+@model Sleepr.Pages.Shared.OutputsModel
+@{
+    ViewData["Title"] = "Agent Outputs";
+}
+<h1>Agent Outputs</h1>
+
+<form method="post" asp-page-handler="Create">
+    <textarea asp-for="NewContent" class="form-control" rows="3" placeholder="New content"></textarea>
+    <button type="submit" class="btn btn-primary mt-2">Add</button>
+</form>
+
+<table class="table table-bordered table-sm mt-3">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Created</th>
+            <th>Content</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+@foreach (var item in Model.Outputs)
+{
+        <tr>
+            <td>@item.Id</td>
+            <td>@item.CreatedAt.ToLocalTime()</td>
+            <td>
+                <details>
+                    <summary>@(item.Content.Length > 100 ? item.Content.Substring(0,100) + "..." : item.Content)</summary>
+                    <pre class="mb-0">@item.Content</pre>
+                </details>
+            </td>
+            <td>
+                <form method="post" asp-page-handler="Delete" class="d-inline">
+                    <input type="hidden" name="DeleteId" value="@item.Id" />
+                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                </form>
+                <button class="btn btn-link btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#edit@item.Id">Edit</button>
+            </td>
+        </tr>
+        <tr class="collapse" id="edit@item.Id">
+            <td colspan="4">
+                <form method="post" asp-page-handler="Update">
+                    <input type="hidden" name="EditId" value="@item.Id" />
+                    <textarea name="EditContent" class="form-control" rows="3">@item.Content</textarea>
+                    <button type="submit" class="btn btn-primary mt-2">Save</button>
+                </form>
+            </td>
+        </tr>
+}
+    </tbody>
+</table>
+
+@section Scripts {
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+}

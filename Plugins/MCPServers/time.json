@@ -1,0 +1,17 @@
+{
+  "id": "time",
+  "name": "Time Tools",
+  "version": "1",
+  "description": "Query current time or convert time based on timezones.",
+  "transport": "stdio",
+  "runtime": "uvx",
+  "args": [ "mcp-server-time", "--local-timezone=Europe/London" ],
+  "env": {},
+  "healthCheck": {
+    "command": "uvx -y mcp-server-time --ping",
+    "timeoutMs": 3000
+  },
+  "timeoutMs": 15000,
+  "tags": [ "time", "time-conversion" ],
+  "origin": "https://github.com/modelcontextprotocol/servers/tree/main/src/time"
+}
