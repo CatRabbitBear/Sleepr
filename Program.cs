@@ -85,13 +85,24 @@ builder.Services.AddTransient((serviceProvider) =>
 });
 
 // Configure agent output to use SQLite database
-var outputDbPath = builder.Configuration["OutputDb:Path"] ?? "agent-output.db";
-var connectionString = Environment.GetEnvironmentVariable("OUTPUT_DB_CONNECTION_STRING")
-    ?? $"Data Source={Path.Combine(Directory.GetCurrentDirectory(), outputDbPath)}";
+// var outputDbPath = builder.Configuration["OutputDb:Path"] ?? "agent-output.db";
+// var connectionString = Environment.GetEnvironmentVariable("OUTPUT_DB_CONNECTION_STRING")
+//     ?? $"Data Source={Path.Combine(Directory.GetCurrentDirectory(), outputDbPath)}";
+
+
+// Refactor - allow user to choose this location via appsettings.json
+string appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Sleepr");
+Directory.CreateDirectory(appDataPath);
+
+string dbFilePath = Path.Combine(appDataPath, builder.Configuration["OutputDb:Path"] ?? "agent-output.db");
+
+string connectionString = $"Data Source={dbFilePath}";
+
 
 builder.Services.AddSingleton(new DbOutputOptions { ConnectionString = connectionString });
 builder.Services.AddScoped<IAgentOutput, DbAgentOutput>();
 
+// Wrap in try/catch instead as .GetEnvironmentVariable will return exception if the variable is not set
 var username = Environment.GetEnvironmentVariable("FASTMAIL_USERNAME");
 var password = Environment.GetEnvironmentVariable("FASTMAIL_APP_PASSWORD");
 if (!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
