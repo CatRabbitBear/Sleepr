@@ -24,6 +24,8 @@ bld/
 
 Logs/*
 !Logs/.gitkeep
+data/agent-output.db
+data/agent-output.db-shm
 
 # .NET Core
 project.lock.json

@@ -37,7 +37,7 @@ builder.Logging.ClearProviders();
 builder.Services.AddScoped<McpPluginManager>(serviceProvider =>
      {
          // 1. Load all manifests from the "test-plugins" folder
-         var pluginFolder = Path.Combine(Directory.GetCurrentDirectory(), "test-plugins");
+         var pluginFolder = Path.Combine(Directory.GetCurrentDirectory(), "Plugins/MCPServers");
          var manifests = PluginLoader.LoadManifests(pluginFolder);
          var logger = serviceProvider.GetRequiredService<ILogger<McpPluginManager>>();
          // 2. Construct and return the manager
@@ -84,15 +84,25 @@ builder.Services.AddTransient((serviceProvider) =>
     return new Kernel(serviceProvider);
 });
 
-builder.Services.AddScoped<IAgentOutput, FileAgentOutput>(serviceProvider =>
-{
-    // Use a directory in the current working directory for output files
-    var outputDirectory = Path.Combine(Directory.GetCurrentDirectory(), "agent-output");
-    Directory.CreateDirectory(outputDirectory);
-    var logger = serviceProvider.GetRequiredService<ILogger<FileAgentOutput>>();
-    return new FileAgentOutput(logger, outputDirectory);
-});
+// Configure agent output to use SQLite database
+// var outputDbPath = builder.Configuration["OutputDb:Path"] ?? "agent-output.db";
+// var connectionString = Environment.GetEnvironmentVariable("OUTPUT_DB_CONNECTION_STRING")
+//     ?? $"Data Source={Path.Combine(Directory.GetCurrentDirectory(), outputDbPath)}";
 
+
+// Refactor - allow user to choose this location via appsettings.json
+string appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Sleepr");
+Directory.CreateDirectory(appDataPath);
+
+string dbFilePath = Path.Combine(appDataPath, builder.Configuration["OutputDb:Path"] ?? "agent-output.db");
+
+string connectionString = $"Data Source={dbFilePath}";
+
+
+builder.Services.AddSingleton(new DbOutputOptions { ConnectionString = connectionString });
+builder.Services.AddScoped<IAgentOutput, DbAgentOutput>();
+
+// Wrap in try/catch instead as .GetEnvironmentVariable will return exception if the variable is not set
 var username = Environment.GetEnvironmentVariable("FASTMAIL_USERNAME");
 var password = Environment.GetEnvironmentVariable("FASTMAIL_APP_PASSWORD");
 if (!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
