@@ -1,52 +1,42 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.ChatCompletion;
-using Sleepr.Controllers;
+﻿using Sleepr.Controllers;
 using Sleepr.Interfaces;
+using Sleepr.Pipeline;
+using Sleepr.Pipeline.Interfaces;
+using Sleepr.Pipeline.Steps;
 
 namespace Sleepr.Agents;
 
 public class ChatCompletionsRunner : IChatCompletionsRunner
 {
     private readonly ILogger<ChatCompletionsRunner> _logger;
-    private readonly Kernel _kernel;
+    private readonly IPipelineContextFactory _contextFactory;
     private readonly IAgentOutput _outputManager;
 
-    public ChatCompletionsRunner(ILogger<ChatCompletionsRunner> logger, Kernel kernel, IAgentOutput outputManager)
+    public ChatCompletionsRunner(
+        ILogger<ChatCompletionsRunner> logger,
+        IPipelineContextFactory contextFactory,
+        IAgentOutput outputManager)
     {
         _logger = logger;
-        _kernel = kernel;
+        _contextFactory = contextFactory;
         _outputManager = outputManager;
     }
 
     public async Task<AgentResponse> RunTaskAsync(List<AgentRequestItem> history)
     {
-        try
-        {
-            ChatHistory chatHistory = ChatHistoryBuilder.FromChatRequest(history);
+        var pipeline = new AgentPipelineBuilder()
+            .Use(new LoadChatHistoryStep())
+            .Use(new RunChatCompletionStep())
+            .Use(new SaveOutputStep(_outputManager))
+            .Build();
 
-            var chatService = _kernel.GetRequiredService<IChatCompletionService>();
-            var result = await chatService.GetChatMessageContentAsync(chatHistory);
+        var context = _contextFactory.Create(history);
+        await pipeline.RunAsync(context);
 
-            if (result.Content != null)
-            {
-                // Save the result to a file if needed
-                var filePath = await _outputManager.SaveAsync(result.Content);
-                return new AgentResponse
-                {
-                    Result = result.Content,
-                    FilePath = filePath
-                };
-            }
-            else
-            {
-                return new AgentResponse { Result = result.ToString(), FilePath = "" };
-            }
-        }
-        catch (Exception ex)
+        return new AgentResponse
         {
-            _logger.LogError(ex, "Error during chat completion");
-            return new AgentResponse { Result = "", FilePath = ""};
-        }
+            Result = context.FinalResult ?? string.Empty,
+            FilePath = context.FilePath
+        };
     }
 }
