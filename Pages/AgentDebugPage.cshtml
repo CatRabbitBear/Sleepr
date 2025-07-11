@@ -26,7 +26,7 @@
             const resultDiv = document.getElementById('result');
             resultDiv.textContent = 'Running...';
             try {
-                const response = await fetch('/api/Agent/run-task', {
+                const response = await fetch('/api/chat-completions/run-task', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
