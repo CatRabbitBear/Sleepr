@@ -1,4 +1,5 @@
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
 using Sleepr.Controllers;
 using Sleepr.Services;
 
@@ -13,7 +14,9 @@ public class PipelineContext
     public Kernel Kernel { get; set; }
     public McpPluginManager PluginManager { get; }
     public IList<string> SelectedPlugins { get; set; } = new List<string>();
+    public ChatHistory? ChatHistory { get; set; }
     public string? FinalResult { get; set; }
+    public string? FilePath { get; set; }
 
     public PipelineContext(
         List<AgentRequestItem> history,
