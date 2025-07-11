@@ -121,22 +121,20 @@ await pipeline.RunAsync(contextFactory.Create(req.History));
 
 ## Loading Plugins
 
-`LoadPluginsStep` is responsible for cloning the kernel and injecting only the requested plugins:
+`LoadPluginsStep` is responsible for injecting only the requested plugins:
 
 ```csharp
 public class LoadPluginsStep : IAgentPipelineStep
 {
     public async Task ExecuteAsync(PipelineContext context)
     {
-        var clone = context.Kernel.Clone();
         foreach (var pluginName in context.SelectedPlugins)
         {
             var manifest = context.PluginManager.GetManifestByName(pluginName);
             var client = await context.PluginManager.AcquireClientAsync(manifest.Id);
             var tools = await client.ListToolsAsync();
-            clone.Plugins.AddFromFunctions(manifest.Id, tools.Select(t => t.AsKernelFunction()));
+            context.Kernel.Plugins.AddFromFunctions(manifest.Id, tools.Select(t => t.AsKernelFunction()));
         }
-        context.Kernel = clone;
     }
 }
 ```
