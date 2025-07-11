@@ -42,6 +42,33 @@ public interface IAgentPipelineBuilder
 }
 ```
 
+### PipelineContextFactory
+
+`PipelineContext` instances require request history so they cannot be registered
+directly with DI. Instead a `PipelineContextFactory` receives the shared
+`Kernel` and `McpPluginManager` from the container and clones the kernel for
+each call:
+
+```csharp
+public class PipelineContextFactory : IPipelineContextFactory
+{
+    private readonly Kernel _kernel;
+    private readonly McpPluginManager _plugins;
+
+    public PipelineContextFactory(Kernel kernel, McpPluginManager plugins)
+    {
+        _kernel = kernel;
+        _plugins = plugins;
+    }
+
+    public PipelineContext Create(List<AgentRequestItem> history)
+    {
+        var clone = _kernel.Clone();
+        return new PipelineContext(history, clone, _plugins);
+    }
+}
+```
+
 ## Building a Pipeline
 
 Steps are registered in the order they should run. The builder returns an `IAgentPipeline` that can be executed with a `PipelineContext`.
@@ -55,7 +82,7 @@ var pipeline = new AgentPipelineBuilder()
     .Use(new SaveOutputStep())
     .Build();
 
-var context = new PipelineContext(req.History, kernel, pluginManager);
+var context = contextFactory.Create(req.History);
 await pipeline.RunAsync(context);
 string? response = context.FinalResult;
 ```
@@ -89,7 +116,7 @@ var pipeline = pipelineBuilder
     .Use(new SaveOutputStep())
     .Build();
 
-await pipeline.RunAsync(new PipelineContext(req.History, kernel, pluginManager));
+await pipeline.RunAsync(contextFactory.Create(req.History));
 ```
 
 ## Loading Plugins
@@ -124,7 +151,7 @@ Controllers obtain an `IAgentPipelineBuilder` and configure the pipeline per req
 [HttpPost("run-task")]
 public async Task<ActionResult<AgentResponse>> RunTask([FromBody] AgentRequest req)
 {
-    var context = new PipelineContext(req.History, _kernel, _pluginManager);
+    var context = _contextFactory.Create(req.History);
     var pipeline = _pipelineBuilder
         .UseDefaultHistory()
         .UseOrchestrator()
@@ -139,5 +166,12 @@ public async Task<ActionResult<AgentResponse>> RunTask([FromBody] AgentRequest r
 ```
 
 Steps can easily be swapped or removed. Additional pipelines might include alternate plugin selectors, additional pre/post-processing or specialised agent types.
+
+### Organising Step Implementations
+
+To keep the project structure tidy, concrete `IAgentPipelineStep` classes can
+live in a shared directory (for example `Pipeline/Steps`). This avoids coupling
+unrelated areas like `Services` or `Agents` directly to the pipeline while still
+allowing steps to reference other features such as `IAgentOutput`.
 
 

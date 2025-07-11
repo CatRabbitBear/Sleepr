@@ -9,6 +9,8 @@ using Sleepr.Mail;
 using Sleepr.Mail.Interfaces;
 using Sleepr.Plugins;
 using Sleepr.Services;
+using Sleepr.Pipeline;
+using Sleepr.Pipeline.Interfaces;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -83,6 +85,7 @@ builder.Services.AddTransient((serviceProvider) =>
 {
     return new Kernel(serviceProvider);
 });
+builder.Services.AddScoped<IPipelineContextFactory, PipelineContextFactory>();
 
 // Configure agent output to use SQLite database
 // var outputDbPath = builder.Configuration["OutputDb:Path"] ?? "agent-output.db";
