@@ -15,6 +15,7 @@ public class PipelineContext
     public McpPluginManager PluginManager { get; }
     public IList<string> SelectedPlugins { get; set; } = new List<string>();
     public ChatHistory? ChatHistory { get; set; }
+    public string? UserMessage { get; set; }
     public string? FinalResult { get; set; }
     public string? FilePath { get; set; }
     // Holds agents created during the pipeline so they can be disposed/cleaned up later
