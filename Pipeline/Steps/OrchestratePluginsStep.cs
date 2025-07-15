@@ -29,15 +29,13 @@ public class OrchestratePluginsStep : IAgentPipelineStep
         var toolsList = PluginUtils.BuildToolsList(context.PluginManager);
         var args = new KernelArguments { ["tools_list"] = toolsList };
 
-        var orchestrator = await _factory.CreateOrchestratorAgentAsync(_path);
-        context.Agents["orchestrator"] = new AgentContext(orchestrator)
-        {
-            Thread = thread,
-            ToolsList = toolsList
-        };
+        var orchestratorCtx = await _factory.CreateOrchestratorAgentAsync(_path);
+        orchestratorCtx.Thread = thread;
+        orchestratorCtx.ToolsList = toolsList;
+        context.Agents["orchestrator"] = orchestratorCtx;
 
         var pluginNames = new List<string>();
-        await foreach (ChatMessageContent message in orchestrator.InvokeAsync(userMessage, thread, new AgentInvokeOptions { KernelArguments = args }))
+        await foreach (ChatMessageContent message in orchestratorCtx.Agent.InvokeAsync(userMessage, thread, new AgentInvokeOptions { KernelArguments = args }))
         {
             if (message.Role == AuthorRole.Assistant)
             {

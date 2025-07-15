@@ -4,6 +4,7 @@ using Microsoft.SemanticKernel.ChatCompletion;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using Sleepr.Interfaces;
+using Sleepr.Pipeline;
 using Sleepr.Services;
 
 namespace Sleepr.Agents;
@@ -31,7 +32,7 @@ class SleeprAgentFactory : ISleeprAgentFactory
     }
 
     // The core agents are agnostic about their threads, no history needed here.
-    public async Task<ChatCompletionAgent> CreateOrchestratorAgentAsync(string path = "orchestrator")
+    public async Task<AgentContext> CreateOrchestratorAgentAsync(string path = "orchestrator")
     {
         var config = await _promptLoader.LoadAsync(path);
         _logger.LogInformation("Creating Orchestrator Agent with config name: {Config}", config.Name);
@@ -40,13 +41,14 @@ class SleeprAgentFactory : ISleeprAgentFactory
             // Clone so we can use different combinations of plugins for different agents
             Kernel = _kernel.Clone(),
         };
-        return agent;
+        return new AgentContext(agent);
     }
 
-    public async Task<ChatCompletionAgent> CreateTaskAgentAsync(string path, List<string> selectedPlugins)
+    public async Task<AgentContext> CreateTaskAgentAsync(string path, List<string> selectedPlugins)
     {
         var config = await _promptLoader.LoadAsync(path);
         var clonedKernel = _kernel.Clone();
+        var pluginIds = new List<string>();
         foreach (var plugin in selectedPlugins)
         {
             try
@@ -58,6 +60,7 @@ class SleeprAgentFactory : ISleeprAgentFactory
 #pragma warning disable SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
                 clonedKernel.Plugins.AddFromFunctions(manifest.Id, tools.Select(aiFunction => aiFunction.AsKernelFunction()));
 #pragma warning restore SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+                pluginIds.Add(manifest.Id);
             }
             catch (KeyNotFoundException ex)
             {
@@ -79,7 +82,7 @@ class SleeprAgentFactory : ISleeprAgentFactory
             Arguments = new KernelArguments(new PromptExecutionSettings() { FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(options: new() { RetainArgumentTypes = true }) })
         };
 #pragma warning restore SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
-        return agent;
+        return new AgentContext(agent, pluginIds);
 
     }
 }
