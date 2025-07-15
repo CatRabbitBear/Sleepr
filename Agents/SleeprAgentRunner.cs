@@ -46,7 +46,7 @@ public class SleeprAgentRunner : IAgentRunner
         await orchestratorAgent.Pipeline.RunAsync(orchestratorContext);
         var plugins = orchestratorContext.SelectedPlugins;
 
-        var taskAgent = await _agentFactory.CreateTaskAgentAsync("task", plugins);
+        var taskAgent = await _agentFactory.CreateTaskAgentAsync("task-runner", plugins);
         var taskContext = taskAgent.PipelineContext ?? _contextFactory.Create(history);
         
         await taskAgent.Pipeline.RunAsync(taskContext);
