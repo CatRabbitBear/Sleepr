@@ -2,37 +2,38 @@ using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Sleepr.Agents;
-using Sleepr.Interfaces;
 using Sleepr.Pipeline.Interfaces;
-using Sleepr.Pipeline;
 using Sleepr.Pipeline.Utils;
-using Sleepr.Services;
 
 namespace Sleepr.Pipeline.Steps;
 
+/// <summary>
+/// Runs the orchestrator agent to select which plugins should be loaded.
+/// </summary>
 public class OrchestratePluginsStep : IAgentPipelineStep
 {
-    private readonly ISleeprAgentFactory _factory;
-    private readonly string _path;
+    private readonly string _agentKey;
 
-    public OrchestratePluginsStep(ISleeprAgentFactory factory, string path = "orchestrator")
+    public OrchestratePluginsStep(string agentKey = "orchestrator")
     {
-        _factory = factory;
-        _path = path;
+        _agentKey = agentKey;
     }
 
     public async Task ExecuteAsync(PipelineContext context)
     {
+        if (!context.Agents.TryGetValue(_agentKey, out var orchestratorCtx))
+        {
+            return;
+        }
+
         var (userMessage, thread) = ChatHistoryBuilder.FromAgentRequest(context.RequestHistory);
         context.UserMessage = userMessage;
 
         var toolsList = PluginUtils.BuildToolsList(context.PluginManager);
         var args = new KernelArguments { ["tools_list"] = toolsList };
 
-        var orchestratorCtx = await _factory.CreateOrchestratorAgentAsync(_path);
         orchestratorCtx.Thread = thread;
         orchestratorCtx.ToolsList = toolsList;
-        context.Agents["orchestrator"] = orchestratorCtx;
 
         var pluginNames = new List<string>();
         await foreach (ChatMessageContent message in orchestratorCtx.Agent.InvokeAsync(userMessage, thread, new AgentInvokeOptions { KernelArguments = args }))

@@ -55,7 +55,6 @@ builder.Services.AddSingleton<IPromptLoader>(serviceProvider =>
 builder.Services.AddSingleton<IPromptTemplateFactory, KernelPromptTemplateFactory>();
 builder.Services.AddScoped<IAgentRunner, SleeprAgentRunner>();
 builder.Services.AddScoped<IChatCompletionsRunner, ChatCompletionsRunner>();
-builder.Services.AddScoped<ISleeprAgentFactory, SleeprAgentFactory>();
 builder.Services.AddRazorPages();
 builder.Services.AddCors(options =>
 {

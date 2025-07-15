@@ -1,28 +1,28 @@
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.ChatCompletion;
-using Sleepr.Interfaces;
 using Sleepr.Pipeline.Interfaces;
-using Sleepr.Pipeline;
-using System.Linq;
 
 namespace Sleepr.Pipeline.Steps;
 
+/// <summary>
+/// Executes the task agent to fulfill the user's request.
+/// </summary>
 public class RunTaskAgentStep : IAgentPipelineStep
 {
-    private readonly ISleeprAgentFactory _factory;
-    private readonly string _path;
+    private readonly string _agentKey;
 
-    public RunTaskAgentStep(ISleeprAgentFactory factory, string path = "task-runner")
+    public RunTaskAgentStep(string agentKey = "task-agent")
     {
-        _factory = factory;
-        _path = path;
+        _agentKey = agentKey;
     }
 
     public async Task ExecuteAsync(PipelineContext context)
     {
-        var pluginNames = context.SelectedPlugins.ToList();
-        var agentCtx = await _factory.CreateTaskAgentAsync(_path, pluginNames);
+        if (!context.Agents.TryGetValue(_agentKey, out var agentCtx))
+        {
+            return;
+        }
 
         var toolsList = context.Agents.TryGetValue("orchestrator", out var orchestrator)
             ? orchestrator.ToolsList
@@ -30,7 +30,6 @@ public class RunTaskAgentStep : IAgentPipelineStep
         var thread = new ChatHistoryAgentThread();
         agentCtx.Thread = thread;
         agentCtx.ToolsList = toolsList;
-        context.Agents["task-agent"] = agentCtx;
 
         var args = new KernelArguments();
         if (!string.IsNullOrWhiteSpace(toolsList))
