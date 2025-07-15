@@ -1,175 +1,81 @@
 # Agent Pipeline API Guide
 
-This document describes the proposed fluent API for composing and executing agent pipelines after the refactor. The API focuses on flexibility and minimal boilerplate while maintaining the ability to restrict available plugins.
+This document explains the current API for building and executing agent pipelines. Pipelines are composed of small `IAgentPipelineStep` implementations that operate on a mutable `PipelineContext`.
 
-## Core Interfaces
+## PipelineContext
 
 ```csharp
-// Carries request data, cloned kernel and any intermediate state
 public class PipelineContext
 {
-    public List<AgentRequestItem> RequestHistory { get; }
-    public Kernel Kernel { get; set; }
-    public McpPluginManager PluginManager { get; }
-    public IList<string> SelectedPlugins { get; set; } = new List<string>();
+    public List<AgentRequestItem>? RequestHistory { get; }
+    public List<string> SelectedPlugins { get; set; } = new();
+    public ChatHistory? ChatHistory { get; set; }
+    public ChatHistoryAgentThread? AgentThread { get; set; }
+    public string? UserMessage { get; set; }
     public string? FinalResult { get; set; }
-    // other fields as needed
+    public string? FilePath { get; set; }
 
-    public PipelineContext(List<AgentRequestItem> history,
-                           Kernel kernel,
-                           McpPluginManager pluginManager)
+    public PipelineContext(List<AgentRequestItem> history)
     {
         RequestHistory = history;
-        Kernel = kernel;
-        PluginManager = pluginManager;
+        if (history.Count > 0 && history.Last().Role == MessageType.User)
+        {
+            UserMessage = history.Last().ToString();
+        }
+        AgentThread = new ChatHistoryAgentThread();
     }
-}
 
-public interface IAgentPipelineStep
-{
-    Task ExecuteAsync(PipelineContext context);
-}
-
-public interface IAgentPipeline
-{
-    Task RunAsync(PipelineContext context);
-}
-
-public interface IAgentPipelineBuilder
-{
-    IAgentPipelineBuilder Use(IAgentPipelineStep step);
-    IAgentPipeline Build();
+    public PipelineContext(string userMessage)
+    {
+        UserMessage = userMessage;
+        AgentThread = new ChatHistoryAgentThread();
+    }
 }
 ```
 
-### PipelineContextFactory
+## AgentContext
 
-`PipelineContext` instances require request history so they cannot be registered
-directly with DI. Instead a `PipelineContextFactory` receives the shared
-`Kernel` and `McpPluginManager` from the container and clones the kernel for
-each call:
+Every agent is created through `AgentFactory` and returned as an `AgentContext` containing the agent and its pipeline.
 
 ```csharp
-public class PipelineContextFactory : IPipelineContextFactory
+public class AgentContext
 {
-    private readonly Kernel _kernel;
-    private readonly McpPluginManager _plugins;
+    public ChatCompletionAgent Agent { get; }
+    public IAgentPipeline Pipeline { get; set; }
+    public PipelineContext? PipelineContext { get; set; }
 
-    public PipelineContextFactory(Kernel kernel, McpPluginManager plugins)
+    public AgentContext(ChatCompletionAgent agent, IAgentPipeline pipeline)
     {
-        _kernel = kernel;
-        _plugins = plugins;
-    }
-
-    public PipelineContext Create(List<AgentRequestItem> history)
-    {
-        var clone = _kernel.Clone();
-        return new PipelineContext(history, clone, _plugins);
+        Agent = agent;
+        Pipeline = pipeline;
     }
 }
 ```
 
-## Building a Pipeline
+## Building Pipelines
 
-Steps are registered in the order they should run. The builder returns an `IAgentPipeline` that can be executed with a `PipelineContext`.
+Steps are added to an `AgentPipelineBuilder` in the order they should execute:
 
 ```csharp
 var pipeline = new AgentPipelineBuilder()
     .Use(new LoadChatHistoryStep())
-    .Use(new SelectPluginsStep(orchestratorPath: "orchestrator"))
-    .Use(new LoadPluginsStep())
-    .Use(new RunTaskAgentStep("task-runner"))
-    .Use(new SaveOutputStep())
+    .Use(new RunTaskAgentStep(myAgent))
+    .Use(new SaveOutputStep(output))
     .Build();
-
-var context = contextFactory.Create(req.History);
-await pipeline.RunAsync(context);
-string? response = context.FinalResult;
 ```
 
-### Extension Methods
+`AgentPipeline.RunAsync` executes each step with the provided `PipelineContext`.
 
-Common sequences can be exposed via extension methods on `IAgentPipelineBuilder` so controllers stay concise:
+## Example Usage
 
 ```csharp
-public static class StandardPipelineExtensions
-{
-    public static IAgentPipelineBuilder UseDefaultHistory(this IAgentPipelineBuilder builder)
-        => builder.Use(new LoadChatHistoryStep());
+var orchestratorAgent = await factory.CreateOrchestratorAgentAsync("orchestrator");
+var orchestratorContext = contextFactory.Create(history);
+await orchestratorAgent.Pipeline.RunAsync(orchestratorContext);
 
-    public static IAgentPipelineBuilder UseOrchestrator(this IAgentPipelineBuilder builder, string path = "orchestrator")
-        => builder.Use(new SelectPluginsStep(path));
-
-    public static IAgentPipelineBuilder UseTaskRunner(this IAgentPipelineBuilder builder, string path = "task-runner")
-        => builder.Use(new RunTaskAgentStep(path));
-}
+var taskAgent = await factory.CreateTaskAgentAsync("task", orchestratorContext.SelectedPlugins);
+var taskContext = contextFactory.Create(history);
+await taskAgent.Pipeline.RunAsync(taskContext);
 ```
 
-Controllers can then compose a pipeline using these helpers:
-
-```csharp
-var pipeline = pipelineBuilder
-    .UseDefaultHistory()
-    .UseOrchestrator()
-    .Use(new LoadPluginsStep())
-    .UseTaskRunner()
-    .Use(new SaveOutputStep())
-    .Build();
-
-await pipeline.RunAsync(contextFactory.Create(req.History));
-```
-
-## Loading Plugins
-
-`LoadPluginsStep` is responsible for injecting only the requested plugins:
-
-```csharp
-public class LoadPluginsStep : IAgentPipelineStep
-{
-    public async Task ExecuteAsync(PipelineContext context)
-    {
-        foreach (var pluginName in context.SelectedPlugins)
-        {
-            var manifest = context.PluginManager.GetManifestByName(pluginName);
-            var client = await context.PluginManager.AcquireClientAsync(manifest.Id);
-            var tools = await client.ListToolsAsync();
-            context.Kernel.Plugins.AddFromFunctions(manifest.Id, tools.Select(t => t.AsKernelFunction()));
-        }
-    }
-}
-```
-
-This keeps the plugin subset behaviour intact and isolates it from the rest of the pipeline.
-
-## Running from Controllers
-
-Controllers obtain an `IAgentPipelineBuilder` and configure the pipeline per request.
-
-```csharp
-[HttpPost("run-task")]
-public async Task<ActionResult<AgentResponse>> RunTask([FromBody] AgentRequest req)
-{
-    var context = _contextFactory.Create(req.History);
-    var pipeline = _pipelineBuilder
-        .UseDefaultHistory()
-        .UseOrchestrator()
-        .Use(new LoadPluginsStep())
-        .UseTaskRunner()
-        .Use(new SaveOutputStep())
-        .Build();
-
-    await pipeline.RunAsync(context);
-    return Ok(new AgentResponse { Result = context.FinalResult ?? string.Empty });
-}
-```
-
-Steps can easily be swapped or removed. Additional pipelines might include alternate plugin selectors, additional pre/post-processing or specialised agent types.
-
-### Organising Step Implementations
-
-To keep the project structure tidy, concrete `IAgentPipelineStep` classes can
-live in a shared directory (for example `Pipeline/Steps`). This avoids coupling
-unrelated areas like `Services` or `Agents` directly to the pipeline while still
-allowing steps to reference other features such as `IAgentOutput`.
-
-
+Pipelines no longer contain explicit `init` or `cleanup` phases. Any setup should happen inside steps or when the agent is created.
