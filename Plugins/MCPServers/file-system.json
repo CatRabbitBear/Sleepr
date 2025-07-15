@@ -11,11 +11,6 @@
     "C:\\Users\\ajame\\OneDrive\\Desktop\\ASP.NET\\Sleepr\\agent-output"
   ],
   "env": {},
-  "healthCheck": {
-    "command": "npx -y @modelcontextprotocol/server-filesystem --ping",
-    "timeoutMs": 3000
-  },
-  "timeoutMs": 15000,
   "tags": [ "file", "file-system", "fs" ],
   "origin": "https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem"
 }
