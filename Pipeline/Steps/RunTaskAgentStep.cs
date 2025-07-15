@@ -22,21 +22,15 @@ public class RunTaskAgentStep : IAgentPipelineStep
     public async Task ExecuteAsync(PipelineContext context)
     {
         var pluginNames = context.SelectedPlugins.ToList();
-        var agent = await _factory.CreateTaskAgentAsync(_path, pluginNames);
-
-        var pluginIds = pluginNames
-            .Select(name => context.PluginManager.GetManifestByName(name).Id)
-            .ToList();
+        var agentCtx = await _factory.CreateTaskAgentAsync(_path, pluginNames);
 
         var toolsList = context.Agents.TryGetValue("orchestrator", out var orchestrator)
             ? orchestrator.ToolsList
             : null;
         var thread = new ChatHistoryAgentThread();
-        context.Agents["task-agent"] = new AgentContext(agent, pluginIds)
-        {
-            Thread = thread,
-            ToolsList = toolsList
-        };
+        agentCtx.Thread = thread;
+        agentCtx.ToolsList = toolsList;
+        context.Agents["task-agent"] = agentCtx;
 
         var args = new KernelArguments();
         if (!string.IsNullOrWhiteSpace(toolsList))
@@ -45,7 +39,7 @@ public class RunTaskAgentStep : IAgentPipelineStep
         }
         string finalResponse = string.Empty;
 
-        await foreach (ChatMessageContent message in agent.InvokeAsync(context.UserMessage ?? string.Empty, thread, new AgentInvokeOptions { KernelArguments = args }))
+        await foreach (ChatMessageContent message in agentCtx.Agent.InvokeAsync(context.UserMessage ?? string.Empty, thread, new AgentInvokeOptions { KernelArguments = args }))
         {
             if (message.Role == AuthorRole.Assistant)
             {
