@@ -9,6 +9,12 @@ namespace Sleepr.Pipeline.Steps;
 /// </summary>
 public class RunChatCompletionStep : IAgentPipelineStep
 {
+    private readonly Kernel _kernel;
+
+    public RunChatCompletionStep(Kernel kernel)
+    {
+        this._kernel = kernel;
+    }
     public async Task ExecuteAsync(PipelineContext context)
     {
         if (context.ChatHistory == null)
@@ -16,7 +22,7 @@ public class RunChatCompletionStep : IAgentPipelineStep
             return;
         }
 
-        var chatService = context.Kernel.GetRequiredService<IChatCompletionService>();
+        var chatService = _kernel.GetRequiredService<IChatCompletionService>();
         var result = await chatService.GetChatMessageContentAsync(context.ChatHistory);
 
         context.FinalResult = result.Content ?? result.ToString();

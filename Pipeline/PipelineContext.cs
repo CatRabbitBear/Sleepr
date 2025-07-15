@@ -1,4 +1,5 @@
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Sleepr.Controllers;
 using Sleepr.Services;
@@ -10,24 +11,29 @@ namespace Sleepr.Pipeline;
 /// </summary>
 public class PipelineContext
 {
-    public List<AgentRequestItem> RequestHistory { get; }
-    public Kernel Kernel { get; set; }
-    public McpPluginManager PluginManager { get; }
-    public IList<string> SelectedPlugins { get; set; } = new List<string>();
+    public List<AgentRequestItem>? RequestHistory { get; }
+    public List<string> SelectedPlugins { get; set; } = new List<string>();
     public ChatHistory? ChatHistory { get; set; }
+    public ChatHistoryAgentThread? AgentThread { get; set; }
     public string? UserMessage { get; set; }
     public string? FinalResult { get; set; }
     public string? FilePath { get; set; }
-    // Holds agents created during the pipeline so they can be disposed/cleaned up later
-    public Dictionary<string, AgentContext> Agents { get; } = new();
 
-    public PipelineContext(
-        List<AgentRequestItem> history,
-        Kernel kernel,
-        McpPluginManager pluginManager)
+    public PipelineContext(List<AgentRequestItem> history)
     {
         RequestHistory = history;
-        Kernel = kernel;
-        PluginManager = pluginManager;
+
+        // I havent thought this through properly, might introduce a subtle bug
+        if (history.Count > 0 && history.Last().Role == MessageType.User)
+        {
+            UserMessage = history.Last().ToString();
+        }
+        AgentThread = new ChatHistoryAgentThread();
+    }
+
+    public PipelineContext(string userMessage)
+    {
+        UserMessage = userMessage;
+        AgentThread = new ChatHistoryAgentThread();
     }
 }

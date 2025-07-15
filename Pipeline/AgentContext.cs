@@ -1,5 +1,6 @@
 using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.ChatCompletion;
+using Sleepr.Pipeline.Interfaces;
 
 namespace Sleepr.Pipeline;
 
@@ -9,13 +10,12 @@ namespace Sleepr.Pipeline;
 public class AgentContext
 {
     public ChatCompletionAgent Agent { get; }
-    public IList<string> PluginIds { get; }
-    public ChatHistoryAgentThread? Thread { get; set; }
-    public string? ToolsList { get; set; }
+    public IAgentPipeline Pipeline { get; set; }
+    public PipelineContext? PipelineContext { get; set; }
 
-    public AgentContext(ChatCompletionAgent agent, IList<string>? pluginIds = null)
+    public AgentContext(ChatCompletionAgent agent, IAgentPipeline pipeline)
     {
         Agent = agent;
-        PluginIds = pluginIds ?? new List<string>();
+        Pipeline = pipeline;
     }
 }

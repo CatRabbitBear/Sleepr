@@ -1,7 +1,9 @@
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.ChatCompletion;
+using Sleepr.Agents;
 using Sleepr.Pipeline.Interfaces;
+using Sleepr.Pipeline.Utils;
 
 namespace Sleepr.Pipeline.Steps;
 
@@ -10,42 +12,43 @@ namespace Sleepr.Pipeline.Steps;
 /// </summary>
 public class RunTaskAgentStep : IAgentPipelineStep
 {
-    private readonly string _agentKey;
+    private readonly ChatCompletionAgent _agent;
 
-    public RunTaskAgentStep(string agentKey = "task-agent")
+    public RunTaskAgentStep(ChatCompletionAgent agent)
     {
-        _agentKey = agentKey;
+        _agent = agent;
     }
 
     public async Task ExecuteAsync(PipelineContext context)
     {
-        if (!context.Agents.TryGetValue(_agentKey, out var agentCtx))
+        if ( context.UserMessage == null )
         {
-            return;
+            throw new ArgumentNullException(nameof(context.UserMessage), "User message cannot be null in PipelineContext.");
         }
 
-        var toolsList = context.Agents.TryGetValue("orchestrator", out var orchestrator)
-            ? orchestrator.ToolsList
-            : null;
-        var thread = new ChatHistoryAgentThread();
-        agentCtx.Thread = thread;
-        agentCtx.ToolsList = toolsList;
+        // 1) Collect all the chat messages into a List
+        var messages = await _agent
+            .InvokeAsync(
+                context.UserMessage,
+                context.AgentThread
+            )
+            .ToListAsync();
 
-        var args = new KernelArguments();
-        if (!string.IsNullOrWhiteSpace(toolsList))
+        // 2) Find the last assistant reply
+        var lastAssistant = messages
+            .LastOrDefault(m => m.Message.Role == AuthorRole.Assistant);
+        
+        context.AgentThread = (ChatHistoryAgentThread?)(messages.LastOrDefault()?.Thread);
+
+        if (lastAssistant is not null)
         {
-            args["tools_list"] = toolsList;
+            // 4) Pull out the content for further processing
+            var assistantContent = lastAssistant.Message.Content ?? string.Empty;
         }
-        string finalResponse = string.Empty;
-
-        await foreach (ChatMessageContent message in agentCtx.Agent.InvokeAsync(context.UserMessage ?? string.Empty, thread, new AgentInvokeOptions { KernelArguments = args }))
+        else
         {
-            if (message.Role == AuthorRole.Assistant)
-            {
-                finalResponse = message.Content ?? string.Empty;
-            }
+            // handle the case where no assistant response was returned - implement logging for steps
         }
-
-        context.FinalResult = finalResponse;
+        context.FinalResult = lastAssistant?.Message.Content ?? string.Empty;
     }
 }

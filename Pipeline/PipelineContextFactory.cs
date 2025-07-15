@@ -10,13 +10,8 @@ namespace Sleepr.Pipeline;
 /// </summary>
 public class PipelineContextFactory : IPipelineContextFactory
 {
-    private readonly Kernel _kernel;
-    private readonly McpPluginManager _pluginManager;
-
-    public PipelineContextFactory(Kernel kernel, McpPluginManager pluginManager)
+    public PipelineContextFactory()
     {
-        _kernel = kernel;
-        _pluginManager = pluginManager;
     }
 
     /// <summary>
@@ -25,7 +20,6 @@ public class PipelineContextFactory : IPipelineContextFactory
     /// </summary>
     public PipelineContext Create(List<AgentRequestItem> history)
     {
-        var clone = _kernel.Clone();
-        return new PipelineContext(history, clone, _pluginManager);
+        return new PipelineContext(history);
     }
 }
