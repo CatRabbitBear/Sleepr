@@ -28,6 +28,7 @@ public class ChatCompletionsRunner : IChatCompletionsRunner
             .Use(new LoadChatHistoryStep())
             .Use(new RunChatCompletionStep())
             .Use(new SaveOutputStep(_outputManager))
+            .Use(new CleanupAgentsStep())
             .Build();
 
         var context = _contextFactory.Create(history);
