@@ -27,10 +27,16 @@ public class RunTaskAgentStep : IAgentPipelineStep
         }
 
         // 1) Collect all the chat messages into a List
+
+        var args = new KernelArguments
+        {
+            ["tools_list"] = String.Join(", ", context.SelectedPlugins)
+        };
         var messages = await _agent
             .InvokeAsync(
                 context.UserMessage,
-                context.AgentThread
+                context.AgentThread,
+                new AgentInvokeOptions { KernelArguments = args }
             )
             .ToListAsync();
 
