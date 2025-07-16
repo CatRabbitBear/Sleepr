@@ -18,6 +18,7 @@ public class PipelineContext
     public string? UserMessage { get; set; }
     public string? FinalResult { get; set; }
     public string? FilePath { get; set; }
+    public List<string> Trace { get; } = new();
 
     public PipelineContext(List<AgentRequestItem> history)
     {

@@ -13,6 +13,7 @@ namespace Sleepr.Agents;
 class AgentFactory : IAgentFactory
 {
     private readonly ILogger<AgentFactory> _logger;
+    private readonly ILoggerFactory _loggerFactory;
     private readonly IPromptLoader _promptLoader;
     private readonly IPromptTemplateFactory _templateFactory;
     private readonly McpPluginManager _pluginManager;
@@ -20,12 +21,14 @@ class AgentFactory : IAgentFactory
 
     public AgentFactory(
         ILogger<AgentFactory> logger,
+        ILoggerFactory loggerFactory,
         IPromptLoader promptLoader,
         IPromptTemplateFactory templateFactory,
         McpPluginManager pluginManager,
         Kernel kernel)
     {
         _logger = logger;
+        _loggerFactory = loggerFactory;
         _promptLoader = promptLoader;
         _templateFactory = templateFactory;
         _pluginManager = pluginManager;
@@ -43,7 +46,7 @@ class AgentFactory : IAgentFactory
         };
         
         var pipeline = new AgentPipelineBuilder()
-            .Use(new OrchestratePluginsStep(agent, _pluginManager))
+            .Use(new OrchestratePluginsStep(agent, _pluginManager, _loggerFactory))
             .Build();
         
         return new AgentContext(agent, pipeline: pipeline);
@@ -88,7 +91,7 @@ class AgentFactory : IAgentFactory
 #pragma warning restore SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
         
         var pipeline = new AgentPipelineBuilder()
-            .Use(new RunTaskAgentStep(agent))
+            .Use(new RunTaskAgentStep(agent, _loggerFactory))
             .Build();
         return new AgentContext(agent, pipeline: pipeline);
 

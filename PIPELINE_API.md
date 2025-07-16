@@ -14,6 +14,7 @@ public class PipelineContext
     public string? UserMessage { get; set; }
     public string? FinalResult { get; set; }
     public string? FilePath { get; set; }
+    public List<string> Trace { get; } = new();
 
     public PipelineContext(List<AgentRequestItem> history)
     {
@@ -43,6 +44,7 @@ public class AgentContext
     public ChatCompletionAgent Agent { get; }
     public IAgentPipeline Pipeline { get; set; }
     public PipelineContext? PipelineContext { get; set; }
+    public List<string> Trace { get; } = new();
 
     public AgentContext(ChatCompletionAgent agent, IAgentPipeline pipeline)
     {
@@ -58,9 +60,9 @@ Steps are added to an `AgentPipelineBuilder` in the order they should execute:
 
 ```csharp
 var pipeline = new AgentPipelineBuilder()
-    .Use(new LoadChatHistoryStep())
-    .Use(new RunTaskAgentStep(myAgent))
-    .Use(new SaveOutputStep(output))
+    .Use(new LoadChatHistoryStep(loggerFactory))
+    .Use(new RunTaskAgentStep(myAgent, loggerFactory))
+    .Use(new SaveOutputStep(output, loggerFactory))
     .Build();
 ```
 
