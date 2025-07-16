@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Sleepr.Interfaces;
 using Sleepr.Pipeline.Interfaces;
 
@@ -9,10 +10,12 @@ namespace Sleepr.Pipeline.Steps;
 public class SaveOutputStep : IAgentPipelineStep
 {
     private readonly IAgentOutput _output;
+    private readonly ILogger _logger;
 
-    public SaveOutputStep(IAgentOutput output)
+    public SaveOutputStep(IAgentOutput output, ILoggerFactory loggerFactory)
     {
         _output = output;
+        _logger = loggerFactory.CreateLogger<SaveOutputStep>();
     }
 
     public async Task ExecuteAsync(PipelineContext context)

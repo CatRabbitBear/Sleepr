@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Sleepr.Pipeline.Interfaces;
@@ -10,10 +11,12 @@ namespace Sleepr.Pipeline.Steps;
 public class RunChatCompletionStep : IAgentPipelineStep
 {
     private readonly Kernel _kernel;
+    private readonly ILogger _logger;
 
-    public RunChatCompletionStep(Kernel kernel)
+    public RunChatCompletionStep(Kernel kernel, ILoggerFactory loggerFactory)
     {
         this._kernel = kernel;
+        _logger = loggerFactory.CreateLogger<RunChatCompletionStep>();
     }
     public async Task ExecuteAsync(PipelineContext context)
     {

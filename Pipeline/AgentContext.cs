@@ -12,6 +12,7 @@ public class AgentContext
     public ChatCompletionAgent Agent { get; }
     public IAgentPipeline Pipeline { get; set; }
     public PipelineContext? PipelineContext { get; set; }
+    public List<string> Trace { get; } = new();
 
     public AgentContext(ChatCompletionAgent agent, IAgentPipeline pipeline)
     {

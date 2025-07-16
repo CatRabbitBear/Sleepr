@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.ChatCompletion;
@@ -15,11 +16,13 @@ public class OrchestratePluginsStep : IAgentPipelineStep
 {
     private readonly ChatCompletionAgent _agent;
     private readonly McpPluginManager _pluginManager;
+    private readonly ILogger _logger;
 
-    public OrchestratePluginsStep(ChatCompletionAgent agent, McpPluginManager pluginManager)
+    public OrchestratePluginsStep(ChatCompletionAgent agent, McpPluginManager pluginManager, ILoggerFactory loggerFactory)
     {
         _pluginManager = pluginManager;
         _agent = agent;
+        _logger = loggerFactory.CreateLogger<OrchestratePluginsStep>();
     }
 
     public async Task ExecuteAsync(PipelineContext context)
