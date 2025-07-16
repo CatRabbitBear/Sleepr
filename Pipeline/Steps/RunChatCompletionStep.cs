@@ -26,7 +26,9 @@ public class RunChatCompletionStep : IAgentPipelineStep
         }
 
         var chatService = _kernel.GetRequiredService<IChatCompletionService>();
+        // TODO: Wrap in try-catch to handle any exceptions from the chat service
         var result = await chatService.GetChatMessageContentAsync(context.ChatHistory);
+        _logger.LogInformation("Chat completion service returned result: {Result}", result.Content ?? "<null>");
 
         context.FinalResult = result.Content ?? result.ToString();
     }
