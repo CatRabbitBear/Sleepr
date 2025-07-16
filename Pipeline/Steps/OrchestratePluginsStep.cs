@@ -37,32 +37,50 @@ public class OrchestratePluginsStep : IAgentPipelineStep
             .ToList();
         var args = new KernelArguments { ["tools_list"] = toolsList };
 
+        const int maxRetries = 2;
+        int attempt = 0;
         var pluginNames = new List<string>();
-        // 1) Collect all the chat messages into a List
-        var messages = await _agent
-            .InvokeAsync(
-                context.UserMessage,
-                context.AgentThread,
-                new AgentInvokeOptions { KernelArguments = args }
-            )
-            .ToListAsync();
 
-        // 2) Find the last assistant reply
-        var lastAssistant = messages
-            .LastOrDefault(m => m.Message.Role == AuthorRole.Assistant);
+        // Keep track of thread between attempts
+        var thread = context.AgentThread;
+        var userPrompt = context.UserMessage;
 
-        context.AgentThread = (ChatHistoryAgentThread?)(messages.LastOrDefault()?.Thread);
-
-        if (lastAssistant is not null)
+        while (attempt <= maxRetries)
         {
-            // 4) Pull out the content for further processing
+            var messages = await _agent
+                .InvokeAsync(
+                    userPrompt!,
+                    thread,
+                    new AgentInvokeOptions { KernelArguments = args }
+                )
+                .ToListAsync();
+
+            var lastAssistant = messages.LastOrDefault(m => m.Message.Role == AuthorRole.Assistant);
+            thread = (ChatHistoryAgentThread?)(messages.LastOrDefault()?.Thread);
+            context.AgentThread = thread;
+
+            if (lastAssistant == null)
+            {
+                _logger.LogWarning("No assistant response received when orchestrating plugins.");
+                break;
+            }
+
             var assistantContent = lastAssistant.Message.Content ?? string.Empty;
-            pluginNames = PluginUtils.GetToolsFromJsonResponse(assistantContent);
+            if (PluginUtils.TryGetToolsFromJsonResponse(assistantContent, out pluginNames))
+            {
+                break;
+            }
+
+            attempt++;
+            if (attempt > maxRetries)
+            {
+                _logger.LogWarning("Failed to parse plugin list after {Attempts} attempts", attempt);
+                break;
+            }
+
+            userPrompt = "The previous response was not valid JSON. Please reply only with JSON in the form: {\"tools\": [\"name\"]}";
         }
-        else
-        {
-            // handle the case where no assistant response was returned - implement logging for steps
-        }
+
         context.SelectedPlugins = pluginNames;
     }
 }

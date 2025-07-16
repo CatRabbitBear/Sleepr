@@ -9,6 +9,9 @@ namespace Sleepr.Pipeline.Utils;
 /// </summary>
 public static class PluginUtils
 {
+    private static readonly JsonSerializerOptions _jsonOptions =
+        new() { PropertyNameCaseInsensitive = true };
+
     public static string BuildToolsList(McpPluginManager pluginManager)
     {
         var dict = pluginManager.ListAvailableServers()
@@ -16,24 +19,41 @@ public static class PluginUtils
         return string.Join("\n", dict.Select(kv => $"- **{kv.Key}**: {kv.Value}"));
     }
 
-    public static List<string> GetToolsFromJsonResponse(string jsonResponse)
+    /// <summary>
+    /// Attempts to deserialize the first JSON object contained within the
+    /// response string to the specified type.
+    /// </summary>
+    public static bool TryDeserializeFirstJson<T>(string response, out T? result)
     {
-        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        var first = ExtractFirstJsonObject(response);
         try
         {
-            var first = ExtractFirstJsonObject(jsonResponse);
-            var toolsResponse = JsonSerializer.Deserialize<ToolsResponse>(first, options);
-            return toolsResponse?.Tools ?? new List<string>();
+            result = JsonSerializer.Deserialize<T>(first, _jsonOptions);
+            return result != null;
         }
         catch (JsonException)
         {
-            return new List<string>();
+            result = default;
+            return false;
         }
+    }
+
+    public static bool TryGetToolsFromJsonResponse(string jsonResponse, out List<string> tools)
+    {
+        if (TryDeserializeFirstJson(jsonResponse, out ToolsResponse? response) &&
+            response?.Tools != null)
+        {
+            tools = response.Tools;
+            return true;
+        }
+
+        tools = new List<string>();
+        return false;
     }
 
     private static string ExtractFirstJsonObject(string input)
     {
-        var m = Regex.Match(input, "{[\\s\\S]*}");
+        var m = Regex.Match(input, "{[\\s\\S]*?}");
         return m.Success ? m.Value : input;
     }
 
