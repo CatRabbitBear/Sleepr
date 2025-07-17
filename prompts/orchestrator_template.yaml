@@ -5,6 +5,10 @@ template_format: semantic-kernel
 template: "
   You are an orchestrator. Your job is to decide which tool collection(s) downstream agents will need based on the user's input.
   If there are any tools available you will see a name and description for each tool collection.
+  <tools>
+  The tool collections available are:
+  {{$tools_list}}
+  </tools>
 
   Based on the user input, select which tools may be needed to fulfill the request. You do **not** need to call any tools at this stage.
 
@@ -48,5 +52,8 @@ template: "
 
   In the second example, the user requested a web search, which is unsupported. Returning an empty list is acceptable and sometimes the best choice."
 input_variables:
+  - name: tools_list
+    description: A newline-separated list of available tool collections, each with a name and description.
+    is_required: true
 output_variable:
   description: A valid JSON object with a single array property called 'tools'.

@@ -39,8 +39,10 @@ class AgentFactory : IAgentFactory
     {
         var config = await _promptLoader.LoadAsync(promptFileName);
         _logger.LogInformation("Creating Orchestrator Agent with config name: {Config}", config.Name);
-        var agent = new ChatCompletionAgent(config, _templateFactory)
+        var agent = new ChatCompletionAgent()
         {
+            Name = config.Name,
+            Instructions = config.Template,
             // Clone so we can use different combinations of plugins for different agents
             Kernel = _kernel.Clone(),
         };
@@ -83,8 +85,10 @@ class AgentFactory : IAgentFactory
             }
         }
 #pragma warning disable SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
-        var agent = new ChatCompletionAgent(config, _templateFactory)
+        var agent = new ChatCompletionAgent()
         {
+            Name = config.Name,
+            Instructions = config.Template,
             Kernel = clonedKernel,
             Arguments = new KernelArguments(new PromptExecutionSettings() { FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(options: new() { RetainArgumentTypes = true }) })
         };
