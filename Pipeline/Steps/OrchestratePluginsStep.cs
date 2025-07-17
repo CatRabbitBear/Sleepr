@@ -42,7 +42,7 @@ public class OrchestratePluginsStep : IAgentPipelineStep
         var pluginNames = new List<string>();
 
         // Keep track of thread between attempts
-        var thread = context.AgentThread;
+        ChatHistoryAgentThread? thread = new();
         var userPrompt = context.UserMessage;
 
         while (attempt <= maxRetries)
@@ -57,7 +57,7 @@ public class OrchestratePluginsStep : IAgentPipelineStep
 
             var lastAssistant = messages.LastOrDefault(m => m.Message.Role == AuthorRole.Assistant);
             thread = (ChatHistoryAgentThread?)(messages.LastOrDefault()?.Thread);
-            context.AgentThread = thread;
+            // context.AgentThread = thread;
 
             if (lastAssistant == null)
             {
